@@ -1,0 +1,11 @@
+#!/bin/bash
+: > nginx/access.log
+
+echo "Stop old docker containers..."
+docker stop thoughtworks-aws-training_docker_server_boy thoughtworks-aws-training_docker_server_apple thoughtworks-aws-training_docker_nginx
+
+echo "Remove old docker containers..."
+docker rm thoughtworks-aws-training_docker_server_boy thoughtworks-aws-training_docker_server_apple thoughtworks-aws-training_docker_nginx
+
+echo "Remove old docker images..."
+docker rmi thoughtworks-aws-training_docker_server_boy thoughtworks-aws-training_docker_server_apple

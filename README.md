@@ -1,1 +1,1 @@
-# thoughtworks-aws-training-docker
+# thoughtworks-aws-training
