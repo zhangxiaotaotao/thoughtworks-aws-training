@@ -2,5 +2,5 @@
 
 auto/remove_all
 
-echo "start docker-compose"
+echo "start docker-compose ..."
 docker-compose up -d
