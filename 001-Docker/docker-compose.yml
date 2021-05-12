@@ -1,0 +1,81 @@
+version: "3"
+
+services:
+  nginx:
+    container_name: thoughtworks-aws-training_docker_nginx
+    image: nginx:1.14
+    restart: always
+    ports:
+      - 80:80
+    links:
+      - web_apple
+      - web_boy
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/access.log:/var/log/nginx/access.log
+    depends_on:
+      - web_apple
+      - web_boy
+    networks:
+      - front_network
+      - middle_network
+
+  web_apple:
+    image: thoughtworks-aws-training_docker_web_apple:latest
+    container_name: thoughtworks-aws-training_docker_web_apple
+    build: web
+    environment:
+      - ServerName=web_apple
+    links:
+      - server
+    depends_on:
+      - server
+    networks:
+      - middle_network
+      - back_network
+
+  web_boy:
+    image: thoughtworks-aws-training_docker_web_boy:latest
+    container_name: thoughtworks-aws-training_docker_web_boy
+    build: web
+    environment:
+      - ServerName=web_boy
+    links:
+      - server
+    depends_on:
+      - server
+    networks:
+      - middle_network
+      - back_network
+
+  server:
+    image: thoughtworks-aws-training_docker_server:latest
+    container_name: thoughtworks-aws-training_docker_server
+    build: server
+    networks:
+      - back_network
+
+networks:
+  front_network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+      - subnet: 192.168.168.0/24
+        gateway: 192.168.168.1
+
+  middle_network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+      - subnet: 192.168.169.0/24
+        gateway: 192.168.169.1
+
+  back_network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+      - subnet: 192.168.170.0/24
+        gateway: 192.168.170.1

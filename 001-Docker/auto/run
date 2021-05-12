@@ -1,0 +1,6 @@
+#!/bin/bash
+
+auto/remove_all
+
+echo "start docker-compose ..."
+docker-compose up -d
