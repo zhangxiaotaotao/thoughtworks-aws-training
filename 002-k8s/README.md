@@ -19,21 +19,33 @@ Kubernetes(k8s)就是按照用户的期望的样子来运行部署应用程序�
 Minikube 是一种可以让您在本地轻松运行 Kubernetes 的工具。Minikube 在笔记本电脑上的虚拟机（VM）中运行单节点 Kubernetes 集群，供那些希望尝试 Kubernetes 或进行日常开发的用户使用。
 
 ### 安装步骤
+
 `brew install kubectl`
 ![image](https://user-images.githubusercontent.com/25293696/117998074-213b9d80-b376-11eb-9e7b-b2ed75d35434.png)
+
 `minikube dashboard`
 ![image](https://user-images.githubusercontent.com/25293696/117998466-842d3480-b376-11eb-9444-12302fb450a5.png)
+
 `docker build -t hello-node:v1 .`
+
 `eval $(minikube docker-env)`
+
 `docker build -t hello-node:v1 .`
+
 `kubectl run hello-node --image=hello-node:v1 --port=8080`
 ![image](https://user-images.githubusercontent.com/25293696/118007157-78de0700-b37e-11eb-895d-16db3397d873.png)
+
 `kubectl get pod`
 ![image](https://user-images.githubusercontent.com/25293696/118007234-8abfaa00-b37e-11eb-91c0-c1138a7b1f10.png)
+
 `kubectl expose pod hello-node --type=LoadBalancer`
 ![image](https://user-images.githubusercontent.com/25293696/118007457-bb9fdf00-b37e-11eb-8d4a-acf0cbc49708.png)
-` kubectl get services`
+
+`kubectl get services`
 ![image](https://user-images.githubusercontent.com/25293696/118007507-c8243780-b37e-11eb-83b2-dba0e6807d8f.png)
+
 `minikube service hello-node`
+
 ![image](https://user-images.githubusercontent.com/25293696/118007624-e12ce880-b37e-11eb-9960-fba0d5a99de4.png)
+
 ![image](https://user-images.githubusercontent.com/25293696/118007667-ec801400-b37e-11eb-85fe-64760c5eafc1.png)
