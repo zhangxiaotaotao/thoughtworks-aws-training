@@ -1,0 +1,17 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$1
+  name: helloworld-nodejs
+  labels:
+    k8s-app: helloworld-nodejs
+spec:
+  rules:
+    - host:
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: helloworld-nodejs
+              servicePort: 8080
