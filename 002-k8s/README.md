@@ -18,7 +18,7 @@ Kubernetes(k8s)就是按照用户的期望的样子来运行部署应用程序�
 ## Minikube介绍
 Minikube 是一种可以让您在本地轻松运行 Kubernetes 的工具。Minikube 在笔记本电脑上的虚拟机（VM）中运行单节点 Kubernetes 集群，供那些希望尝试 Kubernetes 或进行日常开发的用户使用。
 
-### 安装步骤
+### 安装部署步骤
 
 `brew install kubectl`
 ![image](https://user-images.githubusercontent.com/25293696/117998074-213b9d80-b376-11eb-9e7b-b2ed75d35434.png)
@@ -31,6 +31,13 @@ Minikube 是一种可以让您在本地轻松运行 Kubernetes 的工具。Minik
 `eval $(minikube docker-env)`
 
 `docker build -t hello-node:v1 .`
+
+`kubectl apply -f deployment.yaml`
+
+`kubectl apply -f service.yaml`
+
+`kubectl apply -f ingress.yaml`
+
 
 `kubectl run hello-node --image=hello-node:v1 --port=8080`
 ![image](https://user-images.githubusercontent.com/25293696/118007157-78de0700-b37e-11eb-895d-16db3397d873.png)
