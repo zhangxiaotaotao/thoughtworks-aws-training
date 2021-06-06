@@ -1,0 +1,14 @@
+#!/bin/bash
+
+cd $(dirname $0)/..
+
+aws cloudformation delete-stack \
+    --stack-name lambdaTestStack
+aws s3 rm s3://zjt-lambda-test-destination-bucket/ --recursive  --include "*"
+aws s3 rm s3://zjt-lambda-test-source-bucket/ --recursive  --include "*"
+aws s3api delete-bucket --bucket zjt-lambda-test-destination-bucket
+aws s3api delete-bucket --bucket zjt-lambda-test-source-bucket
+aws logs delete-log-group --log-group-name /aws/lambda/zjtlambda
+aws lambda delete-function \
+    --function-name zjtlambda
+aws iam delete-role --role-name zjt-lambda-test-role
