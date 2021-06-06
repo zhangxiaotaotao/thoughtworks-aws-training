@@ -1,0 +1,126 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: aws training homework
+Parameters:
+  SourceS3BucketName:
+    Type: String
+    Default: zjt-lambda-test-source-bucket
+  DestinationS3BucketName:
+    Type: String
+    Default: zjt-lambda-test-destination-bucket
+
+Resources:
+  zjtRole:
+    Type: AWS::IAM::Role
+    DeletionPolicy: Retain
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowLambdaToAssumeRole
+            Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - 'lambda.amazonaws.com'
+      Policies:
+        - PolicyName: s3Policy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 's3:PutObject'
+                  - 's3:GetObject'
+                Resource:
+                  -  !Sub "arn:aws:s3:::${SourceS3BucketName}/*"
+                  -  !Sub "arn:aws:s3:::${DestinationS3BucketName}/*"
+      RoleName: "zjt-lambda-test-role"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+
+  zjtlambda:
+    Type: AWS::Lambda::Function
+    DeletionPolicy: Retain
+    Properties:
+      FunctionName: zjtlambda
+      Description: create a function using cloudformation.
+      Handler: index.handler
+      Runtime: nodejs12.x
+      Code:
+        ZipFile: |
+          const AWS = require("aws-sdk");
+          const s3 = new AWS.S3();
+          exports.handler = async (event, context, callback) =>{
+            console.log("[Begin] execute lambda transform file ....");
+            const source_bucket = event.Records[0].s3.bucket.name;
+            const source_key = decodeURIComponent(event.Records[0].s3.object.key.replace(/\+/g, ' '));
+            const params = {
+                Bucket: source_bucket,
+                Key: source_key,
+            };
+            const file = await s3.getObject(params).promise().then(
+              (res) => {
+                console.log(`success get ${source_key} from zjt-lambda-test-source-bucket`)
+                return res.body;
+              },
+              (err) => {
+                console.log(err);
+              }
+            )
+            const desParams = {
+              Bucket: "zjt-lambda-test-destination-bucket",
+              Key: source_key,
+              Body: file
+            }
+            await s3.putObject(desParams).promise().then(
+              (res) => {
+                console.log(`success put ${source_key} into zjt-lambda-test-destination-bucket`)
+              },
+              (err) => {
+                console.log(err);
+              }
+            )
+            console.log("[End] execute lambda transform file ....");
+          }
+      Role: !GetAtt zjtRole.Arn
+
+  # Permissions
+  AllowS3ToCallLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !Ref zjtlambda
+      Principal: s3.amazonaws.com
+      SourceArn:
+        Fn::Sub: arn:aws:s3:::${SourceS3BucketName}
+
+  zjtSourceBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: !Ref SourceS3BucketName
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: s3:ObjectCreated:Put
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: suffix
+                    Value: txt
+            Function: !GetAtt [ zjtlambda, Arn ]
+
+  zjtDestinationBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: !Ref DestinationS3BucketName
+
+  zjtLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
+    Properties:
+      LogGroupName: /aws/lambda/zjtlambda
+      RetentionInDays: 7
