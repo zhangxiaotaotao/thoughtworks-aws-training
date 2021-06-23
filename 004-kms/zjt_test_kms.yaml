@@ -1,0 +1,25 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  ZjtTestKmsKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: test
+      Enabled: true
+      KeyPolicy: {
+        "Version": "2012-10-17",
+        "Id": "key-default-1",
+        "Statement": [
+          {
+            "Sid": "Enable IAM User Permissions",
+            "Effect": "Allow",
+            "Principal": {
+              "AWS": "arn:aws:iam::834146030470:root"
+            },
+            "Action": "kms:*",
+            "Resource": "*"
+          }
+        ]
+      }
+      KeySpec: RSA_4096
+      PendingWindowInDays: 10

@@ -1,0 +1,10 @@
+#!/bin/bash
+
+cd $(dirname $0)/..
+
+aws configure
+
+aws cloudformation create-stack \
+  --stack-name zjtTestKms \
+  --template-body file://zjt_test_kms.yaml \
+  --capabilities CAPABILITY_NAMED_IAM
