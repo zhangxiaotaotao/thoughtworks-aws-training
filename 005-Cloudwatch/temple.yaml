@@ -1,0 +1,157 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: aws training homework
+Resources:
+  zjtRole:
+    Type: AWS::IAM::Role
+    DeletionPolicy: Retain
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowLambdaToAssumeRole
+            Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - 'lambda.amazonaws.com'
+      Policies:
+        - PolicyName: cloudwatchPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'cloudwatch:PutMetricData'
+                Resource: "*"
+      RoleName: "zjt-lambda-test-role"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+
+  zjtlambda:
+    Type: AWS::Lambda::Function
+    DeletionPolicy: Retain
+    Properties:
+      FunctionName: zjtlambda
+      Description: create a function using cloudformation.
+      Handler: index.handler
+      Runtime: nodejs12.x
+      Code:
+        ZipFile: |
+          const AWS = require('aws-sdk');
+          exports.handler = (event, context) => {
+            console.log("[Begin] Start deal ....");
+
+            // Set the region
+            AWS.config.update({region: 'us-east-2'});
+
+            // Create CloudWatch service object
+            var cw = new AWS.CloudWatch({apiVersion: '2010-08-01'});
+
+            const responseTime = Math.floor(Math.random() * (100 - 1)) + 1;
+
+            console.log(responseTime);
+
+            //Create parameters JSON for putMetricData
+            var params = {
+              MetricData: [
+                {
+                  MetricName: 'ResponseTimePutMetricData',
+                  Unit: 'Seconds',
+                  Value: responseTime
+                },
+              ],
+              Namespace: 'MyselfMetrics'
+            };
+
+            console.log("params is: ", params);
+
+            cw.putMetricData(params, function(err, data) {
+              console.log('callback function');
+              if (err) {
+                console.log("Error", err);
+              } else {
+                console.log("Success", JSON.stringify(data));
+              }
+            });
+            return "the result";
+          };
+      Role: !GetAtt zjtRole.Arn
+
+  zjtLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
+    Properties:
+      LogGroupName: /aws/lambda/zjtlambda
+      RetentionInDays: 7
+
+  zjtScheduledRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: ScheduledRule that invokes the specified Lambda function every 10 minutes
+      ScheduleExpression: rate(1 minute)
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt zjtlambda.Arn
+          Id: target-lambda
+
+  zjtPermissionForEventsToInvokeLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt zjtlambda.Arn
+      Action: lambda:InvokeFunction
+      Principal: "events.amazonaws.com"
+      SourceArn: !GetAtt zjtScheduledRule.Arn
+
+  SnsTopicMetricFilterCloudWatchAlarm:
+    Type: "AWS::SNS::Topic"
+    Properties:
+      Subscription:
+        - Endpoint: "18706722515@sina.cn"
+          Protocol: "email"
+      TopicName: "long-request-time-alarm-action"
+
+  ResponseTimeoutMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName:
+        Ref: "zjtLogGroup"
+      FilterPattern: "[timestamp, id, level, value > 10]"
+      MetricTransformations:
+        - MetricValue: "1"
+          MetricNamespace: "MyselfMetrics"
+          MetricName: "ResponseTimeMetricFilter"
+
+  CloudWatchAlarm:
+    Type: "AWS::CloudWatch::Alarm"
+    Properties:
+      AlarmName: "ResponseTimePutMetricData"
+      AlarmDescription: "[ResponseTimePutMetricData] response time is too long."
+      MetricName: "ResponseTimePutMetricData"
+      Namespace: "MyselfMetrics"
+      Statistic: "Maximum"
+      Period: "300"
+      EvaluationPeriods: "1"
+      Threshold: "10"
+      ComparisonOperator: "GreaterThanOrEqualToThreshold"
+      AlarmActions:
+        - Ref: "SnsTopicMetricFilterCloudWatchAlarm"
+      TreatMissingData: "notBreaching"
+
+  CloudWatchAlarmLog:
+    Type: "AWS::CloudWatch::Alarm"
+    Properties:
+      AlarmName: "ResponseTimeMetricFilter"
+      AlarmDescription: "[ResponseTimeMetricFilter] response time is too long."
+      MetricName: "ResponseTimeMetricFilter"
+      Namespace: "MyselfMetrics"
+      Statistic: "Maximum"
+      Period: "300"
+      EvaluationPeriods: "1"
+      Threshold: "1"
+      ComparisonOperator: "GreaterThanOrEqualToThreshold"
+      AlarmActions:
+        - Ref: "SnsTopicMetricFilterCloudWatchAlarm"
+      TreatMissingData: "notBreaching"

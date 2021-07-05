@@ -1,0 +1,10 @@
+#!/bin/bash
+
+cd $(dirname $0)/..
+
+aws configure
+
+aws cloudformation create-stack \
+  --stack-name cloudWatchTestStack \
+  --template-body file://temple.yaml \
+  --capabilities CAPABILITY_NAMED_IAM
