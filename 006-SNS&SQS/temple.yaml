@@ -64,10 +64,7 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
-                  - sqs:ChangeMessageVisibility
-                  - sqs:DeleteMessage
                   - sqs:SendMessage
-                  - sqs:GetQueueAttributes
                   - sqs:ReceiveMessage
                 Resource:
                   - !GetAtt 'SqsFromSns.Arn'
