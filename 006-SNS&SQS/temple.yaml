@@ -1,0 +1,190 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: aws training homework
+Resources:
+  LambdaForSnsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowLambdaToAssumeRole
+            Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - 'lambda.amazonaws.com'
+      Policies:
+        - PolicyName: AllowSnsMessages
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: !Ref SnsTopicTriggeredByCloudWatchEvent
+      RoleName: "LambdaForSnsRole"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+
+  LambdaForSns:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: LambdaForSns
+      Description: create a function using cloudformation.
+      Handler: index.handler
+      Runtime: nodejs12.x
+      Code:
+        ZipFile: |
+          exports.handler = function(event, context) {
+             console.log("LambdaForSns");
+             console.log(JSON.stringify(event));
+          };
+      Role: !GetAtt LambdaForSnsRole.Arn
+
+  LambdaForSqsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowLambdaToAssumeRole
+            Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - 'lambda.amazonaws.com'
+      Policies:
+        - PolicyName: AllowSqsMessage
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sqs:SendMessage
+                  - sqs:ReceiveMessage
+                Resource:
+                  - !GetAtt 'SqsFromSns.Arn'
+      RoleName: "LambdaForSqsRole"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaSQSQueueExecutionRole
+
+  LambdaForSqs:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: LambdaForSqs
+      Description: create a function using cloudformation.
+      Handler: index.handler
+      Runtime: nodejs12.x
+      Code:
+        ZipFile: |
+          exports.handler = function(event, context) {
+             console.log("LambdaForSqs");
+             console.log(JSON.stringify(event));
+          };
+      Role: !GetAtt LambdaForSqsRole.Arn
+
+  LambdaForSnsInvokePermission:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !Ref LambdaForSns
+      Principal: sns.amazonaws.com
+
+  LambdaLogGroupForSns:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/lambda/LambdaForSns
+      RetentionInDays: 7
+
+  LambdaLogGroupForSqs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/lambda/LambdaForSqs
+      RetentionInDays: 7
+
+  SnsTopicTriggeredByCloudWatchEvent:
+    Type: "AWS::SNS::Topic"
+    Properties:
+      TopicName: "SnsTopicTriggeredByCloudWatchEvent"
+
+  SqsFromSns:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: "SqsFromSns"
+      MessageRetentionPeriod: 432000
+      VisibilityTimeout: 60
+
+  SqsFromSnsSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref SnsTopicTriggeredByCloudWatchEvent
+      Endpoint: !GetAtt SqsFromSns.Arn
+      Protocol: sqs
+      RawMessageDelivery: true
+
+  SqsInvokeLambdaMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      Enabled: true
+      EventSourceArn: !GetAtt SqsFromSns.Arn
+      FunctionName: !GetAtt LambdaForSqs.Arn
+
+  EmailFromSnsSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref SnsTopicTriggeredByCloudWatchEvent
+      Endpoint: "18706722515@sina.cn"
+      Protocol: "email"
+
+  LambdaFromSnsSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref SnsTopicTriggeredByCloudWatchEvent
+      Endpoint: !GetAtt LambdaForSns.Arn
+      Protocol: "lambda"
+
+  zjtScheduledRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: ScheduledRule that invokes the specified Lambda function every 10 minutes
+      ScheduleExpression: rate(1 minute)
+      State: ENABLED
+      Targets:
+        - Arn: !Ref SnsTopicTriggeredByCloudWatchEvent
+          Id: target-sns
+
+  zjtScheduledRulePolicy:
+    Type: 'AWS::SNS::TopicPolicy'
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: 'sns:Publish'
+            Resource: '*'
+      Topics:
+        - !Ref SnsTopicTriggeredByCloudWatchEvent
+
+  SnsToSqsPolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref SqsFromSns
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: allow-sns-messages
+            Effect: Allow
+            Principal: '*'
+            Resource: !GetAtt SqsFromSns.Arn
+            Action: SQS:SendMessage
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !Ref SnsTopicTriggeredByCloudWatchEvent
